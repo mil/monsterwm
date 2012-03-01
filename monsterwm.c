@@ -122,6 +122,7 @@ static void grabkeys(void);
 static void grid(int h, int y);
 static void keypress(XEvent *e);
 static void killclient();
+static void last_desktop();
 static void maprequest(XEvent *e);
 static void monocle(int h, int y);
 static void move_down();
@@ -153,7 +154,7 @@ static int xerrorstart();
 #include "config.h"
 
 static Bool running = True, sbar = SHOW_PANEL;
-static int currdeskidx = 0;
+static int currdeskidx = 0, prevdeskidx = 0;
 static int screen, wh, ww, mode = DEFAULT_MODE;
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0, win_unfocus, win_focus;
@@ -215,7 +216,7 @@ void buttonpress(XEvent *e) {
  * then unmap the old windows
  * first all others then the current */
 void change_desktop(const Arg *arg) {
-    if (arg->i == currdeskidx) return;
+    if (arg->i == currdeskidx) return; else prevdeskidx = currdeskidx;
     if (desktops[arg->i].curr) XMapWindow(dis, desktops[arg->i].curr->win);
     for (Client *c=desktops[arg->i].head; c; c=c->next) XMapWindow(dis, c->win);
     for (Client *c=head; c; c=c->next) if (c != curr) XUnmapWindow(dis, c->win);
@@ -480,6 +481,11 @@ void killclient(void) {
     if (XGetWMProtocols(dis, curr->win, &prot, &n)) while(!--n<0 && prot[n] != wmatoms[WM_DELETE_WINDOW]);
     if (n < 0) XKillClient(dis, curr->win); else deletewindow(curr->win);
     removeclient(curr);
+}
+
+/* focus the previously focused desktop */
+void last_desktop(void) {
+    change_desktop(&(Arg){.i = prevdeskidx});
 }
 
 /* a map request is received when a window wants to display itself
