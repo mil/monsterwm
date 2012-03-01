@@ -82,10 +82,12 @@ typedef struct Client {
  * head - the start of the client list
  * curr - the currently highlighted window
  * prev - the client that previously had focus
+ * sbar - the visibility status of the panel/statusbar
  */
 typedef struct {
     int mode;
     Client *head, *curr, *prev;
+    Bool sbar;
 } Desktop;
 
 /* define behavior of certain applications
@@ -142,6 +144,7 @@ static void stack(int h, int y);
 static void swap_master();
 static void switch_mode(const Arg *arg);
 static void tile(void);
+static void togglepanel();
 static void unmapnotify(XEvent *e);
 static Client* wintoclient(Window w);
 static int xerror(Display *dis, XErrorEvent *ee);
@@ -149,7 +152,7 @@ static int xerrorstart();
 
 #include "config.h"
 
-static Bool running = True;
+static Bool running = True, sbar = SHOW_PANEL;
 static int currdeskidx = 0;
 static int screen, wh, ww, mode = DEFAULT_MODE;
 static int (*xerrorxlib)(Display *, XErrorEvent *);
@@ -726,11 +729,12 @@ void run(void) {
  * load the specified desktop's properties */
 void selectdesktop(int i) {
     if (i < 0 || i >= DESKTOPS || i == currdeskidx) return;
-    desktops[currdeskidx] = (Desktop){ .mode = mode, .head = head, .curr = curr, .prev = prev, };
+    desktops[currdeskidx] = (Desktop){ .mode = mode, .head = head, .curr = curr, .prev = prev, .sbar = sbar, };
     mode = desktops[i].mode;
     head = desktops[i].head;
     curr = desktops[i].curr;
     prev = desktops[i].prev;
+    sbar = desktops[i].sbar;
     currdeskidx = i;
 }
 
@@ -755,7 +759,7 @@ void setup(void) {
 
     ww = XDisplayWidth(dis,  screen);
     wh = XDisplayHeight(dis, screen) - PANEL_HEIGHT;
-    for (unsigned int d=0; d<DESKTOPS;) desktops[d++] = (Desktop){ .mode = mode, };
+    for (unsigned int d=0; d<DESKTOPS;) desktops[d++] = (Desktop){ .mode = mode, .sbar = sbar, };
 
     win_focus = getcolor(FOCUS);
     win_unfocus = getcolor(UNFOCUS);
@@ -860,7 +864,13 @@ void switch_mode(const Arg *arg) {
 /* tile all windows of current desktop - call the handler tiling function */
 void tile(void) {
     if (!head || mode == FLOAT) return; /* nothing to arange */
-    layout[head->next ? mode:MONOCLE](wh, TOP_PANEL ? PANEL_HEIGHT:0);
+    layout[head->next ? mode:MONOCLE](wh + (sbar ? 0:PANEL_HEIGHT), (TOP_PANEL && sbar ? PANEL_HEIGHT:0));
+}
+
+/* toggle visibility state of the panel */
+void togglepanel(void) {
+    sbar = !sbar;
+    tile();
 }
 
 /* windows that request to unmap should lose their
