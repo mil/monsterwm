@@ -422,10 +422,13 @@ void focusin(XEvent *e) {
     if (curr && curr->win != e->xfocus.window) focus(curr);
 }
 
-/* find and focus the client which received
- * the urgent hint in the current desktop */
+/* find and focus the client which received the urgent hint
+ * first look in the current desktop then on other desktops */
 void focusurgent(void) {
-    for (Client *c=head; c; c=c->next) if (c->isurgent) focus(c);
+    Client *c; int d;
+    for (c=head; c; c=c->next) if (c->isurgent) { focus(c); return; }
+    for (d=-1; d < DESKTOPS-1 && !c;) for (c=desktops[++d].head; c && !c->isurgent; c=c->next);
+    if (c) { change_desktop(&(Arg){.i = d}); focus(c); }
 }
 
 /* get a pixel with the requested color
