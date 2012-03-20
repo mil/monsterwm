@@ -161,7 +161,7 @@ static int xerrorstart();
 static Bool running = True, sbar = SHOW_PANEL;
 static int currdeskidx = 0, prevdeskidx = 0, retval = 0;
 static int screen, wh, ww, mode = DEFAULT_MODE;
-static int master_size;
+static float master_size = MASTER_SIZE;
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0, win_unfocus, win_focus;
 static Display *dis;
@@ -742,8 +742,8 @@ void removeclient(Client *c) {
  * the size of a window can't be less than MINWSZ
  */
 void resize_master(const Arg *arg) {
-    int msz = master_size + arg->i;
-    if ((mode == BSTACK ? wh : ww) - msz <= MINWSZ || msz <= MINWSZ) return;
+    float msz = master_size + ((float)arg->i / 100);
+    if (msz > 0.95 || msz < 0.05) return;
     master_size = msz;
     tile();
 }
@@ -802,7 +802,6 @@ void setup(void) {
 
     ww = XDisplayWidth(dis,  screen);
     wh = XDisplayHeight(dis, screen) - PANEL_HEIGHT;
-    master_size = ((mode == BSTACK) ? wh:ww) * MASTER_SIZE;
     for (unsigned int d=0; d<DESKTOPS;) desktops[d++] = (Desktop){ .mode = mode, .sbar = sbar, };
 
     win_focus = getcolor(FOCUS);
@@ -855,7 +854,7 @@ void spawn(const Arg *arg) {
 /* arrange windows in normal or bottom stack tile */
 void stack(int hh, int cy) {
     Client *c = NULL, *t = NULL; Bool b = mode == BSTACK;
-    int n = 0, d = 0, z = b ? ww:hh, ma = master_size;
+    int n = 0, d = 0, z = b ? ww:hh, ma = (b ? wh:ww) * master_size;
 
     /* count stack windows and grab first non-floating, non-fullscreen window */
     for (t = head; t; t=t->next) if (!ISFFT(t)) { if (c) ++n; else c = t; }
@@ -902,7 +901,6 @@ void swap_master(void) {
 void switch_mode(const Arg *arg) {
     if (mode == arg->i && mode != FLOAT) for (Client *c=head; c; c=c->next) c->isfloating = False;
     if ((mode = arg->i) == FLOAT) for (Client *c=head; c; c=c->next) c->isfloating = True;
-    master_size = (mode == BSTACK ? wh:ww) * MASTER_SIZE;
     tile(); focus(curr);
     desktopinfo();
 }
