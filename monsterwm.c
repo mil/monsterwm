@@ -161,9 +161,8 @@ static int xerrorstart();
 #include "config.h"
 
 static Bool running = True, sbar = SHOW_PANEL;
-static int currdeskidx = 0, prevdeskidx = 0, retval = 0;
+static int currdeskidx = 0, prevdeskidx = 0, retval = 0, master_size = 0;
 static int screen, wh, ww, mode = DEFAULT_MODE, growth = 0;
-static float master_size = MASTER_SIZE;
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0, win_unfocus, win_focus;
 static Display *dis;
@@ -747,9 +746,9 @@ void removeclient(Client *c) {
  * the size of a window can't be less than MINWSZ
  */
 void resize_master(const Arg *arg) {
-    float msz = master_size + ((float)arg->i / 100);
-    if (msz > 0.95 || msz < 0.05) return;
-    master_size = msz;
+    int msz = (mode == BSTACK ? wh:ww) * MASTER_SIZE + master_size + arg->i;
+    if (msz < MINWSZ || (mode == BSTACK ? wh:ww) - msz < MINWSZ) return;
+    master_size += arg->i;
     tile();
 }
 
@@ -866,7 +865,7 @@ void spawn(const Arg *arg) {
 /* arrange windows in normal or bottom stack tile */
 void stack(int hh, int cy) {
     Client *c = NULL, *t = NULL; Bool b = mode == BSTACK;
-    int n = 0, d = 0, z = b ? ww:hh, ma = (b ? wh:ww) * master_size;
+    int n = 0, d = 0, z = b ? ww:hh, ma = (b ? wh:ww) * MASTER_SIZE + master_size;
 
     /* count stack windows and grab first non-floating, non-fullscreen window */
     for (t = head; t; t=t->next) if (!ISFFT(t)) { if (c) ++n; else c = t; }
