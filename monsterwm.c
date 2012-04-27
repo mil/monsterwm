@@ -345,6 +345,7 @@ void deletewindow(Window w) {
  * the info is a list of ':' separated values for each desktop
  * desktop to desktop info is separated by ' ' single spaces
  * the info values are
+ *   the monitor number/id
  *   the desktop number/id
  *   the desktop's client count
  *   the desktop's tiling layout mode/id
@@ -354,13 +355,16 @@ void deletewindow(Window w) {
  * once the info is collected, immediately flush the stream */
 void desktopinfo(void) {
     Bool urgent = False;
-    int cd = currdeskidx, n=0, nd=-1;
-    for (Client *c; nd<DESKTOPS-1;) {
-        for (selectdesktop(++nd), c=head, n=0, urgent=False; c; c=c->next, ++n) if (c->isurgent) urgent = True;
-        fprintf(stdout, "%d:%d:%d:%d:%d%c", nd, n, mode, currdeskidx == cd, urgent, nd==DESKTOPS-1?'\n':' ');
+    int cm = current_monitor, nm=-1, cd=0, n=0, nd=-1;
+    for (Client *c; nm<MONITORS-1;) {
+        for (select_monitor(++nm), nd=-1, cd=currdeskidx; nd<DESKTOPS-1;) {
+            for (selectdesktop(++nd), c=head, n=0, urgent=False; c; c=c->next, ++n) if (c->isurgent) urgent = True;
+            fprintf(stdout, "%d:%d:%d:%d:%d:%d%c", nm, nd, n, mode, currdeskidx == cd, urgent, (nm==MONITORS-1 && nd==DESKTOPS-1)?'\n':' ');
+        }
+        if (cd != nd) selectdesktop(cd);
     }
+    if (cm != nm) select_monitor(cm);
     fflush(stdout);
-    if (cd != nd) selectdesktop(cd);
 }
 
 /* a destroy notification is received when a window is being closed
@@ -754,14 +758,19 @@ void quit(const Arg *arg) {
  * if c was the current client, current must be updated. */
 void removeclient(Client *c) {
     Client **p = NULL;
-    int nd = -1, cd = currdeskidx;
-    for (Bool found = False; nd<DESKTOPS-1 && !found;)
-        for (selectdesktop(++nd), p = &head; *p && !(found = *p == c); p = &(*p)->next);
+    int cm = current_monitor, nm=-1, cd=0, nd=-1;
+    for (Bool found = False; nm<MONITORS-1;) {
+        for (select_monitor(++nm), nd=-1, cd = currdeskidx; nd<DESKTOPS-1 && !found;)
+            for (selectdesktop(++nd), p = &head; *p && !(found = *p == c); p = &(*p)->next);
+        if (cd != nd && !found) selectdesktop(cd);
+    }
     *p = c->next;
     if (c == prev) prev = prevclient(curr);
     if (c == curr || (head && !head->next)) focus(prev);
-    if (cd != nd) selectdesktop(cd);
-    else if ((!c->isfloating && !c->istransient) || (head && !head->next)) tile();
+    if (cd != nd) {
+        select_monitor(cm);
+        selectdesktop(cd);
+    } else if ((!c->isfloating && !c->istransient) || (head && !head->next)) tile();
     free(c); c = NULL;
 }
 
@@ -982,9 +991,13 @@ void unmapnotify(XEvent *e) {
 /* find to which client the given window belongs to */
 Client* wintoclient(Window w) {
     Client *c = NULL;
-    int nd = -1, cd = currdeskidx;
-    while (nd<DESKTOPS-1 && !c) for (selectdesktop(++nd), c=head; c && w != c->win; c=c->next);
-    if (cd != nd) selectdesktop(cd);
+    int cm = current_monitor, nm=-1, cd=0, nd=-1;
+    for (Bool found = False; nm<MONITORS-1;) {
+        for (select_monitor(++nm), nd=-1, cd = currdeskidx; nd<DESKTOPS-1 && !found;)
+            for (selectdesktop(++nd), c=head; c && !(found = (w == c->win)); c=c->next);
+        if (cd != nd) selectdesktop(cd);
+    }
+    if (cm != nm) select_monitor(cm);
     return c;
 }
 
@@ -1080,17 +1093,30 @@ int areatomonitor(int x, int y) {
 /* set the specified monitor's properties */
 void select_monitor(int i) {
     if (i < 0 || i >= MONITORS) return;
+
     desktops[currdeskidx] = (Desktop){ .mode = mode, .head = head, .curr = curr,
              .growth = growth, .mastersz = mastersz, .prev = prev, .sbar = sbar, };
     monitors[current_monitor] = (Monitor){ .ww = ww, .wh = wh, .wx = wx, .wy = wy,
                            .currdeskidx = currdeskidx, .prevdeskidx = prevdeskidx, };
-    desktops = monitors[i].desktops;
-    ww = monitors[i].ww;
-    wh = monitors[i].wh;
-    wx = monitors[i].wx;
-    wy = monitors[i].wy;
-    currdeskidx = monitors[i].currdeskidx;
-    prevdeskidx = monitors[i].prevdeskidx;
+
+    desktops        = monitors[i].desktops;
+    prevdeskidx     = monitors[i].prevdeskidx;
+    currdeskidx     = monitors[i].currdeskidx;
+    ww              = monitors[i].ww;
+    wh              = monitors[i].wh;
+    wx              = monitors[i].wx;
+    wy              = monitors[i].wy;
+
+    /* select desktop, here would overrite the
+     * real desktop with save_desktop, workaround,
+     * by reimplentint select_desktop without saving. */
+    mastersz        = desktops[currdeskidx].mastersz;
+    growth          = desktops[currdeskidx].growth;
+    mode            = desktops[currdeskidx].mode;
+    head            = desktops[currdeskidx].head;
+    prev            = desktops[currdeskidx].prev;
+    curr            = desktops[currdeskidx].curr;
+    sbar            = desktops[currdeskidx].sbar;
     current_monitor = i;
 }
 
@@ -1099,16 +1125,6 @@ void change_monitor(const Arg *arg) {
     if (arg->i == current_monitor) return;
     previous_monitor = current_monitor;
     select_monitor(arg->i);
-    /* select desktop, here would overrite the
-     * real desktop with save_desktop, workaround,
-     * by reimplentint select_desktop without saving. */
-    mastersz = desktops[currdeskidx].mastersz;
-    growth   = desktops[currdeskidx].growth;
-    mode = desktops[currdeskidx].mode;
-    head = desktops[currdeskidx].head;
-    prev = desktops[currdeskidx].prev;
-    curr = desktops[currdeskidx].curr;
-    sbar = desktops[currdeskidx].sbar;
     tile(); focus(curr);
     desktopinfo();
 }
