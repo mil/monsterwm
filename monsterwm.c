@@ -1096,12 +1096,19 @@ void select_monitor(int i) {
 
 /* focus another monitor */
 void change_monitor(const Arg *arg) {
-    int tmp;
     if (arg->i == current_monitor) return;
     previous_monitor = current_monitor;
     select_monitor(arg->i);
-    tmp = currdeskidx; currdeskidx = -1;
-    selectdesktop(tmp);
+    /* select desktop, here would overrite the
+     * real desktop with save_desktop, workaround,
+     * by reimplentint select_desktop without saving. */
+    mastersz = desktops[currdeskidx].mastersz;
+    growth   = desktops[currdeskidx].growth;
+    mode = desktops[currdeskidx].mode;
+    head = desktops[currdeskidx].head;
+    prev = desktops[currdeskidx].prev;
+    curr = desktops[currdeskidx].curr;
+    sbar = desktops[currdeskidx].sbar;
     tile(); focus(curr);
     desktopinfo();
 }
