@@ -186,7 +186,7 @@ static Bool running = True, sbar = SHOW_PANEL;
 static int currdeskidx = 0, prevdeskidx = 0, retval = 0, mastersz = 0;
 static int screen, wh, ww, mode = DEFAULT_MODE, growth = 0;
 static int (*xerrorxlib)(Display *, XErrorEvent *);
-static unsigned int numlockmask = 0, win_unfocus, win_focus, win_focus2;
+static unsigned int numlockmask = 0, win_unfocus, win_focus, win_infocus;
 static Display *dis;
 static Window root;
 static Client *head, *prev, *curr;
@@ -874,7 +874,7 @@ void setup(void) {
     wh = XDisplayHeight(dis, screen) - (PANEL_HEIGHT*2);
 
     win_focus = getcolor(FOCUS);
-    win_focus2 = getcolor(FOCUS2);
+    win_infocus = getcolor(INFOCUS);
     win_unfocus = getcolor(UNFOCUS);
 
     XModifierKeymap *modmap = XGetModifierMapping(dis);
@@ -1142,7 +1142,7 @@ void select_monitor(int i) {
                            .currdeskidx = currdeskidx, .prevdeskidx = prevdeskidx, };
 
     /* set inactive focus color */
-    if (curr) XSetWindowBorder(dis, curr->win, win_focus2);
+    if (curr) XSetWindowBorder(dis, curr->win, win_infocus);
 
     desktops        = monitors[i].desktops;
     prevdeskidx     = monitors[i].prevdeskidx;
