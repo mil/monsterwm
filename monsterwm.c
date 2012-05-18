@@ -626,9 +626,11 @@ void mousemotion(const Arg *arg) {
                    xw>MINWSZ ? xw:wa.width, yh>MINWSZ ? yh:wa.height);
                 else if (arg->i == MOVE) {
                     XMoveWindow(dis, curr->win, xw, yh);
-                    if ((monitor = areatomonitor(xw, yh)) != current_monitor) {
+                    if ((monitor = areatomonitor(xw, yh)) != curr->monitor) {
+                        Client *old = curr;
                         client_to_monitor(&(Arg){.i = monitor});
                         select_monitor(monitor);
+                        focus(old);
                     }
                 }
                 break;
@@ -721,10 +723,17 @@ void move_up(void) {
 /* move and resize a window with the keyboard */
 void moveresize(const Arg *arg) {
     XWindowAttributes wa;
+    int monitor;
     if (!curr || !XGetWindowAttributes(dis, curr->win, &wa)) return;
     if (!curr->isfloating && !curr->istransient) { curr->isfloating = True; tile(); focus(curr); }
-    XMVRSZ(dis, curr->win, wa.x + ((int *)arg->v)[0], wa.y + ((int *)arg->v)[1],
-                 wa.width  + ((int *)arg->v)[2], wa.height + ((int *)arg->v)[3]);
+    if ((monitor = areatomonitor(wa.x + ((int *)arg->v)[0], wa.y + ((int *)arg->v)[1])) != curr->monitor) {
+       Client *old = curr;
+       client_to_monitor(&(Arg){.i = monitor});
+       select_monitor(monitor);
+       focus(old);
+    }
+    XMoveResizeWindow(dis, curr->win, wa.x + ((int *)arg->v)[0], wa.y + ((int *)arg->v)[1],
+                             wa.width + ((int *)arg->v)[2], wa.height + ((int *)arg->v)[3]);
 }
 
 /* cyclic focus the next window
