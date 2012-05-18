@@ -581,7 +581,9 @@ void maprequest(XEvent *e) {
         setfullscreen(c, (*(Atom *)state == netatoms[NET_FULLSCREEN]));
     if (state) XFree(state);
 
+    if (cm != newmon) select_monitor(cm);
     if (cd != newdsk) selectdesktop(cd);
+    if (cm != newmon) { tile(); select_monitor(cm); }
     if (cd == newdsk) { if (!c->isfloating) tile(); XMapWindow(dis, c->win); }
     else if (follow) { change_monitor(&(Arg){.i = newmon}); change_desktop(&(Arg){.i = newdsk}); }
     if (follow || cd == newdsk) focus(c);
@@ -794,8 +796,8 @@ void removeclient(Client *c) {
     if (c == prev) prev = prevclient(curr);
     if (c == curr || (head && !head->next)) focus(prev);
     if (cm != nm || cd != nd) {
-        select_monitor(cm);
         selectdesktop(cd);
+        select_monitor(cm);
     } else if ((!c->isfloating && !c->istransient) || (head && !head->next)) tile();
     free(c); c = NULL;
 }
