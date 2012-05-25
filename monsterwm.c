@@ -1144,7 +1144,11 @@ void select_monitor(int i) {
                            .currdeskidx = currdeskidx, .prevdeskidx = prevdeskidx, };
 
     /* set inactive focus color */
-    if (curr) XSetWindowBorder(dis, curr->win, win_infocus);
+    if (curr) {
+       XSetWindowBorder(dis, curr->win, win_infocus);
+       if (CLICK_TO_FOCUS) XGrabButton(dis, Button1, None, curr->win, True,
+                 ButtonPressMask, GrabModeAsync, GrabModeAsync, None, None);
+    }
 
     desktops        = monitors[i].desktops;
     prevdeskidx     = monitors[i].prevdeskidx;
@@ -1167,7 +1171,10 @@ void select_monitor(int i) {
     current_monitor = i;
 
     /* set normal focus color */
-    if (curr) XSetWindowBorder(dis, curr->win, win_focus);
+    if (curr) {
+        XSetWindowBorder(dis, curr->win, win_focus);
+       if (CLICK_TO_FOCUS) XUngrabButton(dis, Button1, None, curr->win);
+    }
 }
 
 /* jump and focus the next or previous monitor */
