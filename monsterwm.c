@@ -748,10 +748,9 @@ void removeclient(Client *c) {
  * the size of a window can't be less than MINWSZ
  */
 void resize_master(const Arg *arg) {
-    int msz = (mode == BSTACK ? wh:ww) * MASTER_SIZE + mastersz + arg->i;
-    if (msz < MINWSZ || (mode == BSTACK ? wh:ww) - msz < MINWSZ) return;
-    mastersz += arg->i;
-    tile();
+    int msz = (mode == BSTACK ? wh:ww) * MASTER_SIZE + (mastersz += arg->i);
+    if (msz < MINWSZ || (mode == BSTACK ? wh:ww) - msz < MINWSZ) mastersz -= arg->i;
+    else tile();
 }
 
 /* resize the first stack window - no boundary checks */
