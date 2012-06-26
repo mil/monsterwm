@@ -80,8 +80,8 @@ typedef struct Client {
 } Client;
 
 /* properties of each desktop
- * master_size - the size of the master window
- * growth      - growth factor of the first stack window
+ * mastersz - the size of the master window
+ * growth   - growth factor of the first stack window
  * mode - the desktop's tiling layout mode
  * head - the start of the client list
  * curr - the currently highlighted window
@@ -89,7 +89,7 @@ typedef struct Client {
  * sbar - the visibility status of the panel/statusbar
  */
 typedef struct {
-    int mode, master_size, growth;
+    int mode, mastersz, growth;
     Client *head, *curr, *prev;
     Bool sbar;
 } Desktop;
@@ -163,7 +163,7 @@ static int xerrorstart();
 #include "config.h"
 
 static Bool running = True, sbar = SHOW_PANEL;
-static int currdeskidx = 0, prevdeskidx = 0, retval = 0, master_size = 0;
+static int currdeskidx = 0, prevdeskidx = 0, retval = 0, mastersz = 0;
 static int screen, wh, ww, mode = DEFAULT_MODE, growth = 0;
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0, win_unfocus, win_focus;
@@ -748,9 +748,9 @@ void removeclient(Client *c) {
  * the size of a window can't be less than MINWSZ
  */
 void resize_master(const Arg *arg) {
-    int msz = (mode == BSTACK ? wh:ww) * MASTER_SIZE + master_size + arg->i;
+    int msz = (mode == BSTACK ? wh:ww) * MASTER_SIZE + mastersz + arg->i;
     if (msz < MINWSZ || (mode == BSTACK ? wh:ww) - msz < MINWSZ) return;
-    master_size += arg->i;
+    mastersz += arg->i;
     tile();
 }
 
@@ -783,14 +783,14 @@ void run(void) {
 void selectdesktop(int i) {
     if (i < 0 || i >= DESKTOPS || i == currdeskidx) return;
     desktops[currdeskidx] = (Desktop){ .mode = mode, .head = head, .curr = curr,
-       .growth = growth, .master_size = master_size, .prev = prev, .sbar = sbar, };
+             .growth = growth, .mastersz = mastersz, .prev = prev, .sbar = sbar, };
     mode   = desktops[i].mode;
     head   = desktops[i].head;
     curr   = desktops[i].curr;
     prev   = desktops[i].prev;
     sbar   = desktops[i].sbar;
     growth = desktops[i].growth;
-    master_size = desktops[i].master_size;
+    mastersz = desktops[i].mastersz;
     currdeskidx = i;
 }
 
@@ -867,7 +867,7 @@ void spawn(const Arg *arg) {
 /* arrange windows in normal or bottom stack tile */
 void stack(int hh, int cy) {
     Client *c = NULL, *t = NULL; Bool b = mode == BSTACK;
-    int n = 0, d = 0, z = b ? ww:hh, ma = (b ? wh:ww) * MASTER_SIZE + master_size;
+    int n = 0, d = 0, z = b ? ww:hh, ma = (b ? wh:ww) * MASTER_SIZE + mastersz;
 
     /* count stack windows and grab first non-floating, non-fullscreen window */
     for (t = head; t; t=t->next) if (!ISFFT(t)) { if (c) ++n; else c = t; }
