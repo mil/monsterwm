@@ -730,9 +730,10 @@ void maprequest(XEvent *e) {
 
     XTextProperty name;
     XGetTextProperty(dis, c->win, &name, XA_WM_NAME);
-    if (name.nitems && name.encoding == XA_STRING) strncpy(c->title, (char *)name.value, sizeof(c->title) - 1);
+    if (name.nitems && name.encoding == XA_STRING)
+        strncpy(c->title, (char *)name.value, sizeof(c->title) - 1);
     c->title[sizeof(c->title) - 1] = '\0';
-    XFree(name.value);
+    if (name.value) XFree(name.value);
 
     if (currdeskidx == newdsk) { if (!ISFFT(c)) tile(d); XMapWindow(dis, c->win); }
     else if (follow) change_desktop(&(Arg){.i = newdsk});
@@ -920,10 +921,21 @@ void prev_win(void) {
 void propertynotify(XEvent *e) {
     Desktop *d = NULL;
     Client *c = NULL;
-    if (e->xproperty.atom != XA_WM_HINTS || !wintoclient(e->xproperty.window, &c, &d)) return;
-    XWMHints *wmh = XGetWMHints(dis, c->win);
-    c->isurgn = (c != desktops[currdeskidx].curr && wmh && (wmh->flags & XUrgencyHint));
-    if (wmh) XFree(wmh);
+
+    if (!wintoclient(e->xproperty.window, &c, &d)) return;
+
+    if (e->xproperty.atom == XA_WM_HINTS) {
+        XWMHints *wmh = XGetWMHints(dis, c->win);
+        c->isurgn = (c != desktops[currdeskidx].curr && wmh && (wmh->flags & XUrgencyHint));
+        if (wmh) XFree(wmh);
+    } else if (e->xproperty.atom == XA_WM_NAME) {
+        XTextProperty name;
+        XGetTextProperty(dis, c->win, &name, XA_WM_NAME);
+        if (name.nitems && name.encoding == XA_STRING)
+            strncpy(c->title, (char *)name.value, sizeof(c->title) - 1);
+        c->title[sizeof(c->title) - 1] = '\0';
+        if (name.value) XFree(name.value);
+    }
     desktopinfo();
 }
 
